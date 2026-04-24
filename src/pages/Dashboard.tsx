@@ -59,7 +59,7 @@ const Dashboard: React.FC = () => {
     <div className="space-y-8">
       <div>
         <h2 className="text-2xl font-bold text-slate-800 tracking-tight mb-1">Inventory Overview</h2>
-        <p className="text-slate-500 text-sm">Real-time status of vibration and sound instruments</p>
+        <p className="text-slate-500 text-sm uppercase tracking-wider font-bold">REAL TIME STATUS OF INSTRUMENTS</p>
       </div>
 
       {/* Stats Grid */}
