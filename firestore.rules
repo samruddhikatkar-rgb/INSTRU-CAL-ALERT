@@ -1,0 +1,119 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function getRole() {
+      return getUserData().role;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        getRole() == 'Admin' || 
+        request.auth.token.email == 'samruddhikatkar@gmail.com'
+      );
+    }
+
+    function isStaff() {
+      return isSignedIn() && getRole() == 'Staff';
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Validation Blueprints ---
+
+    function isValidInstrument(data) {
+      return data.instrument_name is string && data.instrument_name.size() > 0 && data.instrument_name.size() <= 100 &&
+             data.manufacturer is string && data.manufacturer.size() > 0 && data.manufacturer.size() <= 100 &&
+             data.quantity is number && data.quantity >= 0 &&
+             isValidId(data.location_id) &&
+             data.status in ['Valid', 'Expiring Soon', 'Expired'] &&
+             (data.calibration_expiry is string || data.calibration_expiry == null); // Simplified for now, real ISO check is hard in rules
+    }
+
+    function isValidLocation(data) {
+      return data.location_name is string && data.location_name.size() > 0 && data.location_name.size() <= 100;
+    }
+
+    function isValidUser(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.role in ['Admin', 'Staff'] &&
+             data.email is string && data.email == request.auth.token.email;
+    }
+
+    // --- Collection Rules ---
+
+    // Instruments
+    match /instruments/{instrumentId} {
+      allow get: if isSignedIn() && isValidId(instrumentId);
+      allow list: if isSignedIn();
+      
+      allow create: if (isAdmin() || isStaff()) && 
+                    isValidId(instrumentId) &&
+                    isValidInstrument(incoming()) && 
+                    exists(/databases/$(database)/documents/locations/$(incoming().location_id));
+      
+      allow update: if (isAdmin() || isStaff()) && 
+                    isValidId(instrumentId) &&
+                    isValidInstrument(incoming()) &&
+                    // Ensure location exists if it changed
+                    (incoming().location_id == existing().location_id || exists(/databases/$(database)/documents/locations/$(incoming().location_id)));
+      
+      allow delete: if isAdmin() && isValidId(instrumentId);
+    }
+
+    // Locations
+    match /locations/{locationId} {
+      allow get: if isSignedIn() && isValidId(locationId);
+      allow list: if isSignedIn();
+      
+      allow create, update: if isAdmin() && isValidId(locationId) && isValidLocation(incoming());
+      allow delete: if isAdmin() && isValidId(locationId);
+    }
+
+    // Users
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId);
+      allow list: if isSignedIn();
+      
+      // Users can only create their own profile on first login, or Admin creates them
+      allow create: if (isAdmin() || (isSignedIn() && userId == request.auth.uid)) && 
+                    isValidId(userId) &&
+                    isValidUser(incoming());
+      
+      allow update: if (isAdmin() || (isSignedIn() && userId == request.auth.uid)) && 
+                    isValidId(userId) &&
+                    isValidUser(incoming()) &&
+                    // Only Admin can change roles
+                    (incoming().role == existing().role || isAdmin());
+      
+      allow delete: if isAdmin() && isValidId(userId);
+    }
+  }
+}

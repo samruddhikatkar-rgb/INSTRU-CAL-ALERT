@@ -1,0 +1,54 @@
+{
+  "entities": {
+    "instrument": {
+      "title": "Instrument",
+      "description": "A vibration or sound measuring instrument.",
+      "type": "object",
+      "properties": {
+        "instrument_name": { "type": "string", "description": "The name of the instrument." },
+        "manufacturer": { "type": "string", "description": "The manufacturer of the instrument." },
+        "quantity": { "type": "number", "description": "Current stock quantity level." },
+        "location_id": { "type": "string", "description": "The ID of the location where the instrument is stored." },
+        "calibration_date": { "type": "string", "format": "date-time", "description": "The date when the instrument was last calibrated." },
+        "calibration_expiry": { "type": "string", "format": "date-time", "description": "The date when the instrument's calibration expires." },
+        "status": { "type": "string", "enum": ["Valid", "Expiring Soon", "Expired"], "description": "The calibration status of the instrument." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp." }
+      },
+      "required": ["instrument_name", "manufacturer", "quantity", "location_id", "calibration_expiry", "status"]
+    },
+    "location": {
+      "title": "Location",
+      "description": "A warehouse or storage location.",
+      "type": "object",
+      "properties": {
+        "location_name": { "type": "string", "description": "The name of the location." }
+      },
+      "required": ["location_name"]
+    },
+    "user": {
+      "title": "User",
+      "description": "A user of the application.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "The user's full name." },
+        "role": { "type": "string", "enum": ["Admin", "Staff"], "description": "The user's role and permissions." },
+        "email": { "type": "string", "format": "email", "description": "The user's email address." }
+      },
+      "required": ["name", "role", "email"]
+    }
+  },
+  "firestore": {
+    "/instruments/{instrumentId}": {
+      "schema": "instrument",
+      "description": "Collection of all instruments in the inventory."
+    },
+    "/locations/{locationId}": {
+      "schema": "location",
+      "description": "Collection of storage locations/warehouses."
+    },
+    "/users/{userId}": {
+      "schema": "user",
+      "description": "Collection of app users and their roles."
+    }
+  }
+}
